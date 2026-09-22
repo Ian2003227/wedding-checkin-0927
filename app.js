@@ -1,6 +1,7 @@
 let GUESTS = [];
 let FAMILIES = [];
 let CURRENT_GUEST = null;
+let DATA_READY = false;
 
 function api(action, params = {}) {
   const usp = new URLSearchParams({ action, key: CONFIG.API_KEY, ...params });
@@ -22,9 +23,14 @@ async function loadAll() {
     if (!res.ok) { toast('讀取失敗：' + res.error); return; }
     GUESTS = res.guests;
     FAMILIES = res.families;
+    DATA_READY = true;
   } catch (err) {
     console.error('loadAll failed', err);
-    toast('無法連線到資料庫');
+    toast('無法連線到資料庫，請重新整理再試一次');
+  } finally {
+    // 資料可能在使用者已經打字之後才回來，重新跑一次目前的搜尋字串
+    const input = document.getElementById('searchInput');
+    if (input) renderResults(searchGuests(input.value));
   }
 }
 
@@ -52,8 +58,14 @@ function sideBadge(side) {
 
 function renderResults(list) {
   const box = document.getElementById('results');
+  const input = document.getElementById('searchInput');
+  if (!DATA_READY && input && input.value.trim()) {
+    box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
+    return;
+  }
   if (!list.length) {
-    box.innerHTML = `<div class="empty-hint">輸入姓名、綽號或桌號開始搜尋</div>`;
+    const hasQuery = input && input.value.trim();
+    box.innerHTML = `<div class="empty-hint">${hasQuery ? '查無符合的賓客' : '輸入姓名、綽號或桌號開始搜尋'}</div>`;
     return;
   }
   box.innerHTML = list.map(g => `
