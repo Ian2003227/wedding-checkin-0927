@@ -1,0 +1,5 @@
+// 婚禮報到系統設定
+const CONFIG = {
+  API_URL: "PLACEHOLDER_API_URL",
+  API_KEY: "PLACEHOLDER_API_KEY"
+};

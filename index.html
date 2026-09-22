@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>周澤豐＆簡亞婕 婚禮報到系統</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <h1>💍 周澤豐＆簡亞婕 婚禮報到</h1>
+    <div class="sub">2026.09.27（日）翡麗詩莊園</div>
+  </header>
+
+  <div id="panel-search" class="tab-panel active">
+    <div id="searchView">
+      <input id="searchInput" class="search-box" placeholder="輸入姓名／綽號／桌號搜尋" autocomplete="off">
+      <div id="results" class="result-list"></div>
+    </div>
+    <div id="detailView" style="display:none"></div>
+  </div>
+
+  <div id="panel-timeline" class="tab-panel">
+    <div class="section-label">現在階段</div>
+    <div id="nowCard" class="timeline-now-card"></div>
+    <div class="section-label">完整流程</div>
+    <div id="timelineList" class="timeline-list"></div>
+  </div>
+
+</div>
+
+<div class="tabbar">
+  <button id="tabbtn-search" class="active" onclick="switchTab('search')"><span class="ic">🔍</span>賓客報到</button>
+  <button id="tabbtn-timeline" onclick="switchTab('timeline')"><span class="ic">⏱️</span>流程時間軸</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="seating-map.js"></script>
+<script src="timeline-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
