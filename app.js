@@ -34,8 +34,6 @@ async function loadAll() {
   }
 }
 
-function familyById(id) { return FAMILIES.find(f => f.familyId === id); }
-
 // ---------- Search tab ----------
 function normalize(s) { return (s || '').toString().toLowerCase().trim(); }
 
@@ -108,36 +106,6 @@ function renderDetail() {
   const el = document.getElementById('detailView');
   const checkedIn = boolify(g.checkedIn);
   const cookieGiven = boolify(g.cookieGiven);
-  const adhoc = boolify(g.mooncakeAdhoc);
-
-  let mooncakeBlock = '';
-  if (g.family) {
-    const fam = familyById(g.family);
-    const given = fam && boolify(fam.mooncakeGiven);
-    mooncakeBlock = `
-      <button class="action-btn ${given ? 'state-on' : ''}" id="btnMooncake">
-        <span><span class="icon">🥮</span>月餅・${g.familyLabel}
-          <small>同家庭成員：${fam ? fam.members : ''}</small>
-        </span>
-        <span>${given ? '已領取 ✓' : '未領取'}</span>
-      </button>`;
-  } else if (g.side === 'bride') {
-    mooncakeBlock = `
-      <button class="action-btn state-blocked ${adhoc ? 'state-on' : ''}" id="btnMooncakeAdhoc">
-        <span><span class="icon">🥮</span>彈性登記月餅
-          <small>不在標準家庭名單內，僅供現場彈性處理</small>
-        </span>
-        <span>${adhoc ? '已登記 ✓' : '登記'}</span>
-      </button>`;
-  } else {
-    mooncakeBlock = `
-      <button class="action-btn state-blocked ${adhoc ? 'state-on' : ''}" id="btnMooncakeAdhoc">
-        <span><span class="icon">🥮</span>彈性登記月餅
-          <small>男方賓客・原則不發放，僅供特殊情況登記</small>
-        </span>
-        <span>${adhoc ? '已登記 ✓' : '登記'}</span>
-      </button>`;
-  }
 
   el.innerHTML = `
     <span class="back" id="backBtn">← 返回搜尋</span>
@@ -156,17 +124,12 @@ function renderDetail() {
           <span><span class="icon">🍪</span>喜餅／送客小禮</span>
           <span>${cookieGiven ? '已領取 ✓' : '未領取'}</span>
         </button>
-        ${mooncakeBlock}
       </div>
     </div>
   `;
   document.getElementById('backBtn').onclick = closeDetail;
   document.getElementById('btnCheckin').onclick = () => toggleGuestFlag('checkedIn', 'checkin');
   document.getElementById('btnCookie').onclick = () => toggleGuestFlag('cookieGiven', 'cookie');
-  const mBtn = document.getElementById('btnMooncake');
-  if (mBtn) mBtn.onclick = () => toggleFamilyMooncake();
-  const mAdhocBtn = document.getElementById('btnMooncakeAdhoc');
-  if (mAdhocBtn) mAdhocBtn.onclick = () => toggleGuestFlag('mooncakeAdhoc', 'mooncakeAdhoc');
 }
 
 async function toggleGuestFlag(field, action) {
@@ -178,22 +141,6 @@ async function toggleGuestFlag(field, action) {
     g[field] = newVal;
     renderDetail();
     toast(newVal ? '已更新' : '已取消');
-  } catch (err) {
-    console.error(err);
-    toast('無法連線到資料庫，請重試');
-  }
-}
-
-async function toggleFamilyMooncake() {
-  const g = CURRENT_GUEST;
-  const fam = familyById(g.family);
-  const newVal = !boolify(fam.mooncakeGiven);
-  try {
-    const res = await api('mooncakeFamily', { family: g.family, val: newVal ? '1' : '0', by: g.name });
-    if (!res.ok) { toast('操作失敗：' + res.error); return; }
-    fam.mooncakeGiven = newVal;
-    renderDetail();
-    toast(newVal ? '已登記月餅' : '已取消登記');
   } catch (err) {
     console.error(err);
     toast('無法連線到資料庫，請重試');
