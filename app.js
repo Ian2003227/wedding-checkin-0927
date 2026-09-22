@@ -101,11 +101,41 @@ function closeDetail() {
   CURRENT_GUEST = null;
 }
 
+function familyMembers(g) {
+  return g.family ? GUESTS.filter(x => x.family === g.family) : [];
+}
+
 function renderDetail() {
   const g = CURRENT_GUEST;
   const el = document.getElementById('detailView');
   const checkedIn = boolify(g.checkedIn);
   const cookieGiven = boolify(g.cookieGiven);
+  const members = familyMembers(g);
+
+  let familyBlock = '';
+  if (members.length > 1) {
+    const allCheckedIn = members.every(m => boolify(m.checkedIn));
+    const allCookie = members.every(m => boolify(m.cookieGiven));
+    familyBlock = `
+      <div class="section-label">${g.familyLabel}・全家共 ${members.length} 人</div>
+      <div class="family-members">
+        ${members.map(m => `
+          <div class="fam-row">
+            <span>${m.name}${m.id === g.id ? '（本人）' : ''}</span>
+            <span class="fam-status">${boolify(m.checkedIn) ? '✅' : '⬜'}報到　${boolify(m.cookieGiven) ? '🍪' : '⬜'}喜餅</span>
+          </div>`).join('')}
+      </div>
+      <div class="action-row">
+        <button class="action-btn ${allCheckedIn ? 'state-on' : ''}" id="btnFamCheckin">
+          <span><span class="icon">✅</span>全家一起報到</span>
+          <span>${allCheckedIn ? '已全數報到 ✓' : '標記全家'}</span>
+        </button>
+        <button class="action-btn ${allCookie ? 'state-on' : ''}" id="btnFamCookie">
+          <span><span class="icon">🍪</span>全家一起領喜餅</span>
+          <span>${allCookie ? '已全數領取 ✓' : '標記全家'}</span>
+        </button>
+      </div>`;
+  }
 
   el.innerHTML = `
     <span class="back" id="backBtn">← 返回搜尋</span>
@@ -117,19 +147,24 @@ function renderDetail() {
       ${renderSeatingMap(Number(g.table))}
       <div class="action-row">
         <button class="action-btn ${checkedIn ? 'state-on' : ''}" id="btnCheckin">
-          <span><span class="icon">✅</span>報到</span>
+          <span><span class="icon">✅</span>報到（本人）</span>
           <span>${checkedIn ? '已報到 ✓' : '尚未報到'}</span>
         </button>
         <button class="action-btn ${cookieGiven ? 'state-on' : ''}" id="btnCookie">
-          <span><span class="icon">🍪</span>喜餅／送客小禮</span>
+          <span><span class="icon">🍪</span>喜餅（本人）</span>
           <span>${cookieGiven ? '已領取 ✓' : '未領取'}</span>
         </button>
       </div>
+      ${familyBlock}
     </div>
   `;
   document.getElementById('backBtn').onclick = closeDetail;
   document.getElementById('btnCheckin').onclick = () => toggleGuestFlag('checkedIn', 'checkin');
   document.getElementById('btnCookie').onclick = () => toggleGuestFlag('cookieGiven', 'cookie');
+  const famCheckinBtn = document.getElementById('btnFamCheckin');
+  if (famCheckinBtn) famCheckinBtn.onclick = () => toggleFamilyFlag('checkedIn', 'checkinFamily');
+  const famCookieBtn = document.getElementById('btnFamCookie');
+  if (famCookieBtn) famCookieBtn.onclick = () => toggleFamilyFlag('cookieGiven', 'cookieFamily');
 }
 
 async function toggleGuestFlag(field, action) {
@@ -149,6 +184,29 @@ async function toggleGuestFlag(field, action) {
   } catch (err) {
     console.error(err);
     g[field] = !newVal;
+    if (CURRENT_GUEST === g) renderDetail();
+    toast('無法連線到資料庫，已還原');
+  }
+}
+
+async function toggleFamilyFlag(field, action) {
+  const g = CURRENT_GUEST;
+  const members = familyMembers(g);
+  const allTrue = members.every(m => boolify(m[field]));
+  const newVal = !allTrue;
+  members.forEach(m => { m[field] = newVal; });
+  renderDetail();
+  toast(newVal ? '已標記全家' : '已取消全家標記');
+  try {
+    const res = await api(action, { family: g.family, val: newVal ? '1' : '0' });
+    if (!res.ok) {
+      members.forEach(m => { m[field] = !newVal; });
+      if (CURRENT_GUEST === g) renderDetail();
+      toast('操作失敗，已還原：' + res.error);
+    }
+  } catch (err) {
+    console.error(err);
+    members.forEach(m => { m[field] = !newVal; });
     if (CURRENT_GUEST === g) renderDetail();
     toast('無法連線到資料庫，已還原');
   }

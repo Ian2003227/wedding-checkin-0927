@@ -133,6 +133,17 @@ header.topbar .sub { font-size: 12px; color: var(--text-dim); }
 .pulse-ring { fill: none; stroke: var(--tbl-hi); stroke-width: 2; opacity: .55; animation: pulse 1.6s ease-out infinite; }
 @keyframes pulse { 0% { r: 20; opacity: .6; } 100% { r: 34; opacity: 0; } }
 
+.family-members {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+  padding: 4px 12px; margin: 6px 0 4px;
+}
+.fam-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+}
+.fam-row:last-child { border-bottom: none; }
+.fam-status { color: var(--text-dim); white-space: nowrap; }
+
 .action-row { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .action-btn {
   width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border);
