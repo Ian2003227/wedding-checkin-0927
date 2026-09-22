@@ -135,15 +135,22 @@ function renderDetail() {
 async function toggleGuestFlag(field, action) {
   const g = CURRENT_GUEST;
   const newVal = !boolify(g[field]);
+  // 先樂觀更新畫面，避免等待 Apps Script 的網路來回才有反應
+  g[field] = newVal;
+  renderDetail();
+  toast(newVal ? '已更新' : '已取消');
   try {
     const res = await api(action, { id: g.id, val: newVal ? '1' : '0' });
-    if (!res.ok) { toast('操作失敗：' + res.error); return; }
-    g[field] = newVal;
-    renderDetail();
-    toast(newVal ? '已更新' : '已取消');
+    if (!res.ok) {
+      g[field] = !newVal;
+      if (CURRENT_GUEST === g) renderDetail();
+      toast('操作失敗，已還原：' + res.error);
+    }
   } catch (err) {
     console.error(err);
-    toast('無法連線到資料庫，請重試');
+    g[field] = !newVal;
+    if (CURRENT_GUEST === g) renderDetail();
+    toast('無法連線到資料庫，已還原');
   }
 }
 
