@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>周澤豐＆簡亞婕 婚禮報到系統</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <div class="app">
@@ -22,6 +22,14 @@
     <div id="detailView" style="display:none"></div>
   </div>
 
+  <div id="panel-ceremony" class="tab-panel">
+    <div class="cer-header">
+      <div class="section-label">證婚受邀名單（可上樓）</div>
+      <div id="ceremonyCount" class="cer-count"></div>
+    </div>
+    <div id="ceremonyList" class="cer-list"></div>
+  </div>
+
   <div id="panel-timeline" class="tab-panel">
     <div class="section-label">現在階段</div>
     <div id="nowCard" class="timeline-now-card"></div>
@@ -29,18 +37,37 @@
     <div id="timelineList" class="timeline-list"></div>
   </div>
 
+  <div id="panel-docs" class="tab-panel">
+    <div class="section-label">婚顧提供的原始流程表</div>
+    <a class="doc-card" href="https://drive.google.com/file/d/173NZoCa9PxjOyfdJWVWuTPLwveELhdlU/view" target="_blank" rel="noopener">
+      <span class="doc-title">📄 文定儀式流程表</span>
+      <span class="doc-meta">07:30 – 08:50・女方家</span>
+    </a>
+    <a class="doc-card" href="https://drive.google.com/file/d/1x57x5ddmVKQf8VhkYcwblD0PdTibbHQ1/view" target="_blank" rel="noopener">
+      <span class="doc-title">📄 迎娶儀式流程表</span>
+      <span class="doc-meta">08:50 – 10:00・女方家 → 翡麗詩</span>
+    </a>
+    <a class="doc-card" href="https://drive.google.com/file/d/1BFGoD_vLn26hMfyEwtsg5nzM2cFWr9Ol/view" target="_blank" rel="noopener">
+      <span class="doc-title">📄 證婚＋午宴流程表</span>
+      <span class="doc-meta">10:00 – 14:40・翡麗詩</span>
+    </a>
+    <div class="doc-note">檔案放在 Google 雲端硬碟（僅限本人帳號開啟），需用登入 Google 的瀏覽器或雲端硬碟 App 開啟。</div>
+  </div>
+
 </div>
 
 <div class="tabbar">
   <button id="tabbtn-search" class="active" onclick="switchTab('search')"><span class="ic">🔍</span>賓客報到</button>
+  <button id="tabbtn-ceremony" onclick="switchTab('ceremony')"><span class="ic">💒</span>證婚名單</button>
   <button id="tabbtn-timeline" onclick="switchTab('timeline')"><span class="ic">⏱️</span>流程時間軸</button>
+  <button id="tabbtn-docs" onclick="switchTab('docs')"><span class="ic">📄</span>流程表PDF</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=1"></script>
-<script src="seating-map.js?v=1"></script>
-<script src="timeline-data.js?v=1"></script>
-<script src="app.js?v=1"></script>
+<script src="config.js?v=2"></script>
+<script src="seating-map.js?v=2"></script>
+<script src="timeline-data.js?v=2"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

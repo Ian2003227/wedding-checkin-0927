@@ -31,6 +31,7 @@ async function loadAll() {
     // 資料可能在使用者已經打字之後才回來，重新跑一次目前的搜尋字串
     const input = document.getElementById('searchInput');
     if (input) renderResults(searchGuests(input.value));
+    renderCeremony();
   }
 }
 
@@ -46,6 +47,13 @@ function searchGuests(q) {
            normalize(g.tag).includes(nq) ||
            String(g.table) === nq;
   }).slice(0, 30);
+}
+
+// 綽號若是「本名(稱謂)」形式，只留稱謂，避免名字重複出現
+function aliasOf(g) {
+  let alias = g.nickname && g.nickname !== g.name ? g.nickname : '';
+  if (alias.startsWith(g.name)) alias = alias.slice(g.name.length).replace(/^[（(]|[)）]$/g, '');
+  return alias;
 }
 
 function sideBadge(side) {
@@ -69,7 +77,7 @@ function renderResults(list) {
   box.innerHTML = list.map(g => `
     <div class="result-item" data-id="${g.id}">
       <div>
-        <div class="name">${g.name}${g.nickname ? ' <span style="color:var(--text-dim);font-weight:400;font-size:13px">(' + g.nickname + ')</span>' : ''}</div>
+        <div class="name">${g.name}${aliasOf(g) ? ' <span style="color:var(--text-dim);font-weight:400;font-size:13px">(' + aliasOf(g) + ')</span>' : ''}</div>
         <div class="meta">第 ${g.table} 桌・${g.tableTitle}</div>
       </div>
       ${sideBadge(g.side)}
@@ -141,7 +149,7 @@ function renderDetail() {
     <span class="back" id="backBtn">← 返回搜尋</span>
     <div class="detail-card">
       <div class="dname">${g.name}</div>
-      <div class="dsub">${g.nickname ? g.nickname + '　' : ''}${g.tag ? '（' + g.tag + '）' : ''} ${sideBadge(g.side)}</div>
+      <div class="dsub">${aliasOf(g) ? aliasOf(g) + '　' : ''}${g.tag ? '（' + g.tag + '）' : ''} ${sideBadge(g.side)}</div>
       <div class="table-num">第 ${g.table} 桌</div>
       <div class="table-title">${g.tableTitle}</div>
       ${renderSeatingMap(Number(g.table))}
@@ -159,32 +167,35 @@ function renderDetail() {
     </div>
   `;
   document.getElementById('backBtn').onclick = closeDetail;
-  document.getElementById('btnCheckin').onclick = () => toggleGuestFlag('checkedIn', 'checkin');
-  document.getElementById('btnCookie').onclick = () => toggleGuestFlag('cookieGiven', 'cookie');
+  document.getElementById('btnCheckin').onclick = () => toggleGuestFlag(g, 'checkedIn', 'checkin', rerenderDetailFor(g));
+  document.getElementById('btnCookie').onclick = () => toggleGuestFlag(g, 'cookieGiven', 'cookie', rerenderDetailFor(g));
   const famCheckinBtn = document.getElementById('btnFamCheckin');
   if (famCheckinBtn) famCheckinBtn.onclick = () => toggleFamilyFlag('checkedIn', 'checkinFamily');
   const famCookieBtn = document.getElementById('btnFamCookie');
   if (famCookieBtn) famCookieBtn.onclick = () => toggleFamilyFlag('cookieGiven', 'cookieFamily');
 }
 
-async function toggleGuestFlag(field, action) {
-  const g = CURRENT_GUEST;
+function rerenderDetailFor(g) {
+  return () => { if (CURRENT_GUEST === g) renderDetail(); };
+}
+
+async function toggleGuestFlag(g, field, action, rerender) {
   const newVal = !boolify(g[field]);
   // 先樂觀更新畫面，避免等待 Apps Script 的網路來回才有反應
   g[field] = newVal;
-  renderDetail();
+  rerender();
   toast(newVal ? '已更新' : '已取消');
   try {
     const res = await api(action, { id: g.id, val: newVal ? '1' : '0' });
     if (!res.ok) {
       g[field] = !newVal;
-      if (CURRENT_GUEST === g) renderDetail();
+      rerender();
       toast('操作失敗，已還原：' + res.error);
     }
   } catch (err) {
     console.error(err);
     g[field] = !newVal;
-    if (CURRENT_GUEST === g) renderDetail();
+    rerender();
     toast('無法連線到資料庫，已還原');
   }
 }
@@ -210,6 +221,37 @@ async function toggleFamilyFlag(field, action) {
     if (CURRENT_GUEST === g) renderDetail();
     toast('無法連線到資料庫，已還原');
   }
+}
+
+// ---------- Ceremony tab ----------
+function renderCeremony() {
+  const box = document.getElementById('ceremonyList');
+  const counter = document.getElementById('ceremonyCount');
+  if (!DATA_READY) {
+    box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
+    return;
+  }
+  const invited = GUESTS.filter(g => boolify(g.ceremonyInvited));
+  const done = invited.filter(g => boolify(g.ceremonyChecked)).length;
+  counter.textContent = `已確認 ${done} / ${invited.length} 人`;
+  box.innerHTML = invited.map(g => {
+    const on = boolify(g.ceremonyChecked);
+    const alias = aliasOf(g);
+    return `
+      <button class="cer-row ${on ? 'on' : ''}" data-id="${g.id}">
+        <span class="cer-box">${on ? '✓' : ''}</span>
+        <span class="cer-text">
+          <span class="cer-name">${g.name}${alias ? `<span class="cer-alias">（${alias}）</span>` : ''}</span>
+          <span class="cer-meta">第 ${g.table} 桌・${g.tableTitle}</span>
+        </span>
+      </button>`;
+  }).join('');
+  box.querySelectorAll('.cer-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const g = GUESTS.find(x => x.id === el.dataset.id);
+      toggleGuestFlag(g, 'ceremonyChecked', 'ceremony', renderCeremony);
+    });
+  });
 }
 
 // ---------- Tabs ----------
@@ -281,6 +323,7 @@ function renderTimeline() {
 // ---------- boot ----------
 (async function init() {
   renderTimeline();
+  renderCeremony();
   setInterval(renderTimeline, 30000);
   await loadAll();
 })();
