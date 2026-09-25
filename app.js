@@ -28,9 +28,8 @@ async function loadAll() {
     console.error('loadAll failed', err);
     toast('無法連線到資料庫，請重新整理再試一次');
   } finally {
-    // 資料可能在使用者已經打字之後才回來，重新跑一次目前的搜尋字串
-    const input = document.getElementById('searchInput');
-    if (input) renderResults(searchGuests(input.value));
+    // 資料可能在使用者已經打字之後才回來，重新渲染一次
+    renderSearch();
     renderCeremony();
   }
 }
@@ -38,15 +37,76 @@ async function loadAll() {
 // ---------- Search tab ----------
 function normalize(s) { return (s || '').toString().toLowerCase().trim(); }
 
+let SIDE_FILTER = 'all';
+let SELECTED_TABLE = null;
+
+function sideMatches(g) {
+  return SIDE_FILTER === 'all' || g.side === SIDE_FILTER;
+}
+
 function searchGuests(q) {
   const nq = normalize(q);
   if (!nq) return [];
-  return GUESTS.filter(g => {
-    return normalize(g.name).includes(nq) ||
-           normalize(g.nickname).includes(nq) ||
-           normalize(g.tag).includes(nq) ||
-           String(g.table) === nq;
-  }).slice(0, 30);
+  return GUESTS.filter(g => sideMatches(g) && (
+    normalize(g.name).includes(nq) ||
+    normalize(g.nickname).includes(nq) ||
+    normalize(g.tag).includes(nq) ||
+    String(g.table) === nq
+  )).slice(0, 40);
+}
+
+// 第 1 桌男女方混坐，所以兩邊都會出現
+function tablesForSide() {
+  const tables = new Map();
+  GUESTS.forEach(g => {
+    if (!sideMatches(g)) return;
+    const t = tables.get(g.table) || { table: g.table, title: g.tableTitle, total: 0, arrived: 0 };
+    t.total++;
+    if (boolify(g.checkedIn)) t.arrived++;
+    tables.set(g.table, t);
+  });
+  return [...tables.values()].sort((a, b) => a.table - b.table);
+}
+
+function renderSearch() {
+  const input = document.getElementById('searchInput');
+  const q = input ? input.value.trim() : '';
+  document.querySelectorAll('.side-chip').forEach(c => c.classList.toggle('active', c.dataset.side === SIDE_FILTER));
+  if (q) {
+    renderResults(searchGuests(q));
+  } else if (SELECTED_TABLE !== null) {
+    renderTableGuests(SELECTED_TABLE);
+  } else {
+    renderTableGrid();
+  }
+}
+
+function renderTableGrid() {
+  const box = document.getElementById('results');
+  if (!DATA_READY) {
+    box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="table-grid">` + tablesForSide().map(t => `
+    <button class="table-tile" data-table="${t.table}">
+      <span class="tt-num">${t.table}</span>
+      <span class="tt-title">${t.title}</span>
+      <span class="tt-count">${t.arrived}/${t.total}</span>
+    </button>`).join('') + `</div>`;
+  box.querySelectorAll('.table-tile').forEach(el => {
+    el.addEventListener('click', () => { SELECTED_TABLE = Number(el.dataset.table); renderSearch(); });
+  });
+}
+
+function renderTableGuests(table) {
+  const list = GUESTS.filter(g => g.table === table && sideMatches(g));
+  const title = list.length ? list[0].tableTitle : '';
+  renderResults(list, `
+    <div class="table-head">
+      <span class="back" id="backToTables">← 全部桌次</span>
+      <span class="th-title">第 ${table} 桌・${title}</span>
+    </div>`);
+  document.getElementById('backToTables').onclick = () => { SELECTED_TABLE = null; renderSearch(); };
 }
 
 // 綽號若是「本名(稱謂)」形式，只留稱謂，避免名字重複出現
@@ -62,22 +122,20 @@ function sideBadge(side) {
   return '';
 }
 
-function renderResults(list) {
+function renderResults(list, header = '') {
   const box = document.getElementById('results');
-  const input = document.getElementById('searchInput');
-  if (!DATA_READY && input && input.value.trim()) {
+  if (!DATA_READY) {
     box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
     return;
   }
   if (!list.length) {
-    const hasQuery = input && input.value.trim();
-    box.innerHTML = `<div class="empty-hint">${hasQuery ? '查無符合的賓客' : '輸入姓名、綽號或桌號開始搜尋'}</div>`;
+    box.innerHTML = header + `<div class="empty-hint">查無符合的賓客</div>`;
     return;
   }
-  box.innerHTML = list.map(g => `
-    <div class="result-item" data-id="${g.id}">
+  box.innerHTML = header + list.map(g => `
+    <div class="result-item ${boolify(g.checkedIn) ? 'arrived' : ''}" data-id="${g.id}">
       <div>
-        <div class="name">${g.name}${aliasOf(g) ? ' <span style="color:var(--text-dim);font-weight:400;font-size:13px">(' + aliasOf(g) + ')</span>' : ''}</div>
+        <div class="name">${boolify(g.checkedIn) ? '✅ ' : ''}${g.name}${aliasOf(g) ? ' <span style="color:var(--text-dim);font-weight:400;font-size:13px">(' + aliasOf(g) + ')</span>' : ''}</div>
         <div class="meta">第 ${g.table} 桌・${g.tableTitle}</div>
       </div>
       ${sideBadge(g.side)}
@@ -90,8 +148,11 @@ function renderResults(list) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('searchInput');
-  input.addEventListener('input', () => renderResults(searchGuests(input.value)));
-  renderResults([]);
+  input.addEventListener('input', renderSearch);
+  document.querySelectorAll('.side-chip').forEach(c => {
+    c.addEventListener('click', () => { SIDE_FILTER = c.dataset.side; SELECTED_TABLE = null; renderSearch(); });
+  });
+  renderSearch();
 });
 
 function openDetail(id) {
@@ -107,6 +168,7 @@ function closeDetail() {
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('searchView').style.display = 'block';
   CURRENT_GUEST = null;
+  renderSearch();
 }
 
 function familyMembers(g) {
@@ -224,6 +286,18 @@ async function toggleFamilyFlag(field, action) {
 }
 
 // ---------- Ceremony tab ----------
+// 使用者自己名單上的稱呼與順序；名單外（在試算表勾選新增的）排在最後、用綽號顯示
+const CEREMONY_LABELS = [
+  ['T1-5', '爸'], ['T1-6', '媽'], ['T1-11', '二哥'], ['T1-12', '二嫂'], ['T1-10', '婆婆'],
+  ['T12-1', '大姊'], ['T12-2', '二姊'], ['T12-3', 'Bob'], ['T12-4', '岡儒'], ['T12-5', '小呆'],
+  ['T15-1', '宜嬛'], ['T15-2', '阿凱'], ['T15-3', '宜嬛兒'], ['T15-4', '宜嬛女'], ['T15-5', '安妮'],
+  ['T15-6', '安妮男友'], ['T15-7', '孜瑾'], ['T15-8', '孜瑾夫'], ['T13-5', '慧(美國姨)'], ['T13-6', 'Ian'],
+  ['T13-7', '孜穎'], ['T13-9', '二樓'], ['T13-10', 'Peter'], ['T17-1', '柔'], ['T17-2', '元元'],
+  ['T20-1', '可鐘'], ['T20-2', '堯柔'], ['T20-4', '怡安'], ['T23-1', '暈眩'], ['T23-9', '鮪魚'],
+  ['T23-10', '莊潔'], ['T19-1', '小萬']
+];
+const CEREMONY_ORDER = new Map(CEREMONY_LABELS.map(([id, label], i) => [id, { label, i }]));
+
 function renderCeremony() {
   const box = document.getElementById('ceremonyList');
   const counter = document.getElementById('ceremonyCount');
@@ -231,22 +305,15 @@ function renderCeremony() {
     box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
     return;
   }
-  const invited = GUESTS.filter(g => boolify(g.ceremonyInvited));
+  const invited = GUESTS.filter(g => boolify(g.ceremonyInvited))
+    .sort((a, b) => (CEREMONY_ORDER.get(a.id)?.i ?? 999) - (CEREMONY_ORDER.get(b.id)?.i ?? 999));
   const done = invited.filter(g => boolify(g.ceremonyChecked)).length;
   counter.textContent = `已確認 ${done} / ${invited.length} 人`;
   box.innerHTML = invited.map(g => {
-    const on = boolify(g.ceremonyChecked);
-    const alias = aliasOf(g);
-    return `
-      <button class="cer-row ${on ? 'on' : ''}" data-id="${g.id}">
-        <span class="cer-box">${on ? '✓' : ''}</span>
-        <span class="cer-text">
-          <span class="cer-name">${g.name}${alias ? `<span class="cer-alias">（${alias}）</span>` : ''}</span>
-          <span class="cer-meta">第 ${g.table} 桌・${g.tableTitle}</span>
-        </span>
-      </button>`;
+    const label = CEREMONY_ORDER.get(g.id)?.label || aliasOf(g) || g.name;
+    return `<button class="cer-cell ${boolify(g.ceremonyChecked) ? 'on' : ''}" data-id="${g.id}">${label}</button>`;
   }).join('');
-  box.querySelectorAll('.cer-row').forEach(el => {
+  box.querySelectorAll('.cer-cell').forEach(el => {
     el.addEventListener('click', () => {
       const g = GUESTS.find(x => x.id === el.dataset.id);
       toggleGuestFlag(g, 'ceremonyChecked', 'ceremony', renderCeremony);

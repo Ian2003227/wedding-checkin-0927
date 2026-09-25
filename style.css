@@ -117,7 +117,7 @@ header.topbar .sub { font-size: 12px; color: var(--text-dim); }
   background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;
   padding: 16px; margin-top: 12px;
 }
-.detail-card .back { color: var(--accent); font-size: 14px; margin-bottom: 10px; display: inline-block; cursor: pointer; }
+.back { color: var(--accent); font-size: 14px; margin-bottom: 10px; display: inline-block; cursor: pointer; }
 .detail-card .dname { font-size: 22px; font-weight: 700; }
 .detail-card .dsub { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
 .table-num {
@@ -199,23 +199,39 @@ header.topbar .sub { font-size: 12px; color: var(--text-dim); }
 
 .cer-header { display: flex; justify-content: space-between; align-items: baseline; }
 .cer-count { font-size: 13px; font-weight: 700; color: var(--accent); }
-.cer-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.cer-row {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
-  padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border);
-  background: var(--card-bg); color: var(--text); font: inherit;
+.cer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.cer-cell {
+  min-height: 54px; padding: 6px 4px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 600; line-height: 1.25; word-break: break-all;
 }
-.cer-row.on { background: var(--ok-soft); border-color: var(--ok); }
-.cer-box {
-  flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px;
-  border: 2px solid var(--tbl-stroke); display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 800; color: #fff;
+.cer-cell.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+.side-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.side-chip {
+  padding: 10px 0; border-radius: 10px; border: 1.5px solid var(--border);
+  background: var(--card-bg); color: var(--text-dim); font: inherit; font-size: 15px; font-weight: 700;
 }
-.cer-row.on .cer-box { background: var(--ok); border-color: var(--ok); }
-.cer-text { display: flex; flex-direction: column; min-width: 0; }
-.cer-name { font-size: 15px; font-weight: 600; }
-.cer-alias { font-weight: 400; font-size: 12px; color: var(--text-dim); }
-.cer-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.side-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.side-chip.groom.active { background: var(--groom-soft); border-color: var(--groom); color: var(--groom); }
+.side-chip.bride.active { background: var(--bride-soft); border-color: var(--bride); color: var(--bride); }
+
+.table-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.table-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 3px; border-radius: 10px; border: 1.5px solid var(--border);
+  background: var(--card-bg); color: var(--text); font: inherit; min-width: 0;
+}
+.tt-num { font-size: 22px; font-weight: 800; color: var(--accent); line-height: 1.1; }
+.tt-title {
+  font-size: 10px; color: var(--text-dim); width: 100%; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tt-count { font-size: 11px; color: var(--ok); font-weight: 600; }
+.table-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+.table-head .back { margin-bottom: 0; }
+.th-title { font-size: 14px; font-weight: 700; }
+.result-item.arrived { border-color: var(--ok); }
 
 .doc-card {
   display: flex; flex-direction: column; gap: 4px; margin-top: 10px;
