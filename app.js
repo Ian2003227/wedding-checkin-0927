@@ -308,6 +308,17 @@ const GROOM_CEREMONY = [
   '阿棠', '小琴', '肥爸', '三阿姨', '四姨丈', '五阿姨', 'derek', 'stanley', 'aaron',
   '寶兄', 'wilson', 'wilson gf', '炳秀', 'andy', 'au daniel', 'bert', 'denise', 'ebony', '王玉香老師'
 ];
+// 依 09/27 A3 入座名冊對出的正式姓名與桌次（比對時優先用正式姓名，同名時看桌次）。
+// 名冊上對不到的（翁麗秋 hb、五阿姨、wilson gf、andy）不列，改用稱呼比對
+const GROOM_CEREMONY_NAMES = {
+  '周順標': ['周順標', 1], '陳玲珠': ['陳玲珠', 1], 'larry 舅舅': ['陳麒允', 1], 'larry 舅媽': ['劉倢妤', 1],
+  '大阿姨': ['陳美珠', 9], '大姨丈': ['薛勇祝', 9], '翁麗秋': ['翁麗秋', 4], 'sharon': ['周鈺瑄', 11],
+  '凱文': ['王彥凱', 11], '阿棠': ['周孫棠', 8], '小琴': ['周語華', 8], '肥爸': ['陳志忠', 8],
+  '三阿姨': ['陳春年', 2], '四姨丈': ['莊定寰', 2], 'derek': ['周庭毅', 7], 'stanley': ['周君翰', 21],
+  'aaron': ['周煒倫', 11], '寶兄': ['陳栩寶', 21], 'wilson': ['陳星宇', 21], '炳秀': ['金炳秀', 21],
+  'au daniel': ['丹尼爾卡希爾', 11], 'bert': ['王伯特', 11], 'denise': ['王丹尼斯', 11],
+  'ebony': ['海斯埃博尼', 11], '王玉香老師': ['王玉香', 4]
+};
 // 自動比對錯人或比對不到時，在這裡手動指定賓客 id，例如 '凱文': 'T5-3'
 const GROOM_CEREMONY_IDS = {};
 // 名單上還沒標 ok 的人
@@ -332,7 +343,23 @@ function groomCeremonyMatches() {
     const g = GUESTS.find(x => x.id === id);
     if (g) { result.set(label, g); taken.add(g.id); }
   });
-  // 先找姓名／綽號完全相同，再找包含；有多個候選人時寧可不配，交給手動指定
+  // 有多個候選人時：先挑名冊上的那一桌，再挑男方；還是不只一個就寧可不配，交給手動指定
+  const pick = (label, hits, table) => {
+    let pool = hits.filter(g => Number(g.table) === table);
+    if (!pool.length) pool = hits.filter(g => g.side === 'groom');
+    if (!pool.length) pool = hits;
+    if (pool.length !== 1) return;
+    result.set(label, pool[0]);
+    taken.add(pool[0].id);
+  };
+  // 1. 正式姓名（名冊上的外國賓客姓名後面可能接英文，例如「王伯特(Bert Wong)」）
+  GROOM_CEREMONY.forEach(label => {
+    const known = GROOM_CEREMONY_NAMES[label];
+    if (result.has(label) || !known) return;
+    const [name, table] = known;
+    pick(label, GUESTS.filter(g => !taken.has(g.id) && compact(g.name).startsWith(compact(name))), table);
+  });
+  // 2. 稱呼和姓名／綽號完全相同，3. 稱呼包含在姓名／綽號裡
   const passes = [
     (g, q) => compact(g.name) === q || compact(g.nickname) === q,
     (g, q) => g.side === 'groom' && q.length >= 2 && (containsWord(compact(g.name), q) || containsWord(compact(g.nickname), q))
@@ -341,12 +368,7 @@ function groomCeremonyMatches() {
     GROOM_CEREMONY.forEach(label => {
       if (result.has(label)) return;
       const q = compact(label);
-      const hits = GUESTS.filter(g => !taken.has(g.id) && test(g, q));
-      const groomHits = hits.filter(g => g.side === 'groom');
-      const pool = groomHits.length ? groomHits : hits;
-      if (pool.length !== 1) return;
-      result.set(label, pool[0]);
-      taken.add(pool[0].id);
+      pick(label, GUESTS.filter(g => !taken.has(g.id) && test(g, q)), GROOM_CEREMONY_NAMES[label]?.[1]);
     });
   });
   GROOM_MATCH = result;
