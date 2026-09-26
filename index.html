@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>周澤豐＆簡亞婕 婚禮報到系統</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <div class="app">
@@ -32,7 +32,12 @@
       <div class="section-label">證婚受邀名單（可上樓）</div>
       <div id="ceremonyCount" class="cer-count"></div>
     </div>
-    <div id="ceremonyList" class="cer-grid"></div>
+    <div id="cerSideChips" class="side-chips">
+      <button class="side-chip active" data-side="all">全部</button>
+      <button class="side-chip groom" data-side="groom">男方</button>
+      <button class="side-chip bride" data-side="bride">女方</button>
+    </div>
+    <div id="ceremonyList"></div>
   </div>
 
   <div id="panel-timeline" class="tab-panel">
@@ -70,9 +75,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=3"></script>
-<script src="seating-map.js?v=3"></script>
-<script src="timeline-data.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="seating-map.js?v=4"></script>
+<script src="timeline-data.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
