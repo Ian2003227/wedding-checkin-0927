@@ -206,6 +206,10 @@ header.topbar .sub { font-size: 12px; color: var(--text-dim); }
   font: inherit; font-size: 15px; font-weight: 600; line-height: 1.25; word-break: break-all;
 }
 .cer-cell.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.cer-note { display: block; font-size: 10px; font-weight: 400; opacity: .75; margin-top: 2px; }
+.cer-sub { font-size: 13px; font-weight: 700; margin: 14px 0 0; }
+.cer-sub.groom { color: var(--groom); }
+.cer-sub.bride { color: var(--bride); }
 
 .side-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
 .side-chip {

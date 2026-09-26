@@ -71,7 +71,7 @@ function tablesForSide() {
 function renderSearch() {
   const input = document.getElementById('searchInput');
   const q = input ? input.value.trim() : '';
-  document.querySelectorAll('.side-chip').forEach(c => c.classList.toggle('active', c.dataset.side === SIDE_FILTER));
+  document.querySelectorAll('#searchView .side-chip').forEach(c => c.classList.toggle('active', c.dataset.side === SIDE_FILTER));
   if (q) {
     renderResults(searchGuests(q));
   } else if (SELECTED_TABLE !== null) {
@@ -149,8 +149,11 @@ function renderResults(list, header = '') {
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('searchInput');
   input.addEventListener('input', renderSearch);
-  document.querySelectorAll('.side-chip').forEach(c => {
+  document.querySelectorAll('#searchView .side-chip').forEach(c => {
     c.addEventListener('click', () => { SIDE_FILTER = c.dataset.side; SELECTED_TABLE = null; renderSearch(); });
+  });
+  document.querySelectorAll('#cerSideChips .side-chip').forEach(c => {
+    c.addEventListener('click', () => { CEREMONY_SIDE = c.dataset.side; renderCeremony(); });
   });
   renderSearch();
 });
@@ -298,23 +301,130 @@ const CEREMONY_LABELS = [
 ];
 const CEREMONY_ORDER = new Map(CEREMONY_LABELS.map(([id, label], i) => [id, { label, i }]));
 
+// 男方證婚名單（使用者提供，依原表欄位順序）。執行時用姓名／綽號比對賓客資料；
+// 比對不到的人仍會顯示（標「名單外」），勾選狀態只存在這支手機
+const GROOM_CEREMONY = [
+  '周順標', '陳玲珠', 'larry 舅舅', 'larry 舅媽', '大阿姨', '大姨丈', '翁麗秋', '翁麗秋 hb', 'sharon', '凱文',
+  '阿棠', '小琴', '肥爸', '三阿姨', '四姨丈', '五阿姨', 'derek', 'stanley', 'aaron',
+  '寶兄', 'wilson', 'wilson gf', '炳秀', 'andy', 'au daniel', 'bert', 'denise', 'ebony', '王玉香老師'
+];
+// 自動比對錯人或比對不到時，在這裡手動指定賓客 id，例如 '凱文': 'T5-3'
+const GROOM_CEREMONY_IDS = {};
+// 名單上還沒標 ok 的人
+const GROOM_CEREMONY_PENDING = new Set(['王玉香老師']);
+
+let CEREMONY_SIDE = 'all';
+let GROOM_MATCH = null;
+
+function compact(s) { return normalize(s).replace(/\s+/g, ''); }
+
+// 英文綽號要整個字相符，避免 andy 配到 sandy
+function containsWord(hay, q) {
+  if (!/^[a-z]+$/.test(q)) return hay.includes(q);
+  return new RegExp(`(^|[^a-z])${q}([^a-z]|$)`).test(hay);
+}
+
+function groomCeremonyMatches() {
+  if (GROOM_MATCH) return GROOM_MATCH;
+  const result = new Map();
+  const taken = new Set(CEREMONY_ORDER.keys()); // 女方名單上的人不拿來配對
+  Object.entries(GROOM_CEREMONY_IDS).forEach(([label, id]) => {
+    const g = GUESTS.find(x => x.id === id);
+    if (g) { result.set(label, g); taken.add(g.id); }
+  });
+  // 先找姓名／綽號完全相同，再找包含；有多個候選人時寧可不配，交給手動指定
+  const passes = [
+    (g, q) => compact(g.name) === q || compact(g.nickname) === q,
+    (g, q) => g.side === 'groom' && q.length >= 2 && (containsWord(compact(g.name), q) || containsWord(compact(g.nickname), q))
+  ];
+  passes.forEach(test => {
+    GROOM_CEREMONY.forEach(label => {
+      if (result.has(label)) return;
+      const q = compact(label);
+      const hits = GUESTS.filter(g => !taken.has(g.id) && test(g, q));
+      const groomHits = hits.filter(g => g.side === 'groom');
+      const pool = groomHits.length ? groomHits : hits;
+      if (pool.length !== 1) return;
+      result.set(label, pool[0]);
+      taken.add(pool[0].id);
+    });
+  });
+  GROOM_MATCH = result;
+  return result;
+}
+
+const CER_LOCAL_KEY = 'ceremonyLocalChecked';
+function readLocalChecked() {
+  try { return JSON.parse(localStorage.getItem(CER_LOCAL_KEY) || '{}'); } catch (e) { return {}; }
+}
+function toggleLocalChecked(label) {
+  const data = readLocalChecked();
+  data[label] = !data[label];
+  try { localStorage.setItem(CER_LOCAL_KEY, JSON.stringify(data)); } catch (e) { /* 無痕模式存不了，只影響這次畫面 */ }
+  toast(data[label] ? '已更新' : '已取消');
+  return data;
+}
+
+function ceremonyEntries() {
+  const groomMatch = groomCeremonyMatches();
+  const groomIds = new Set([...groomMatch.values()].map(g => g.id));
+  const local = readLocalChecked();
+  const fromGuest = (g, label) => ({ label, guest: g, checked: boolify(g.ceremonyChecked) });
+
+  const groom = GROOM_CEREMONY.map(label => {
+    const g = groomMatch.get(label);
+    const e = g ? fromGuest(g, label) : { label, localKey: label, checked: !!local[label] };
+    e.pending = GROOM_CEREMONY_PENDING.has(label);
+    return e;
+  });
+  // 名單外、在試算表勾選新增的受邀者：男方賓客排在男方最後，其餘歸女方
+  const extra = GUESTS.filter(g => boolify(g.ceremonyInvited) && !groomIds.has(g.id));
+  extra.filter(g => !CEREMONY_ORDER.has(g.id) && g.side === 'groom')
+    .forEach(g => groom.push(fromGuest(g, aliasOf(g) || g.name)));
+  const bride = extra.filter(g => CEREMONY_ORDER.has(g.id) || g.side !== 'groom')
+    .sort((a, b) => (CEREMONY_ORDER.get(a.id)?.i ?? 999) - (CEREMONY_ORDER.get(b.id)?.i ?? 999))
+    .map(g => fromGuest(g, CEREMONY_ORDER.get(g.id)?.label || aliasOf(g) || g.name));
+  return { groom, bride };
+}
+
+function cerCountText(list) {
+  return `${list.filter(e => e.checked).length} / ${list.length}`;
+}
+
+function cerGrid(list) {
+  return `<div class="cer-grid">` + list.map(e => {
+    const note = [e.localKey && '名單外', e.pending && '待確認'].filter(Boolean).join('・');
+    const attr = e.guest ? `data-id="${e.guest.id}"` : `data-local="${e.localKey}"`;
+    return `<button class="cer-cell ${e.checked ? 'on' : ''}" ${attr}>${e.label}${note ? `<span class="cer-note">${note}</span>` : ''}</button>`;
+  }).join('') + `</div>`;
+}
+
 function renderCeremony() {
   const box = document.getElementById('ceremonyList');
   const counter = document.getElementById('ceremonyCount');
+  document.querySelectorAll('#cerSideChips .side-chip').forEach(c => c.classList.toggle('active', c.dataset.side === CEREMONY_SIDE));
   if (!DATA_READY) {
     box.innerHTML = `<div class="empty-hint">資料載入中，請稍候…</div>`;
     return;
   }
-  const invited = GUESTS.filter(g => boolify(g.ceremonyInvited))
-    .sort((a, b) => (CEREMONY_ORDER.get(a.id)?.i ?? 999) - (CEREMONY_ORDER.get(b.id)?.i ?? 999));
-  const done = invited.filter(g => boolify(g.ceremonyChecked)).length;
-  counter.textContent = `已確認 ${done} / ${invited.length} 人`;
-  box.innerHTML = invited.map(g => {
-    const label = CEREMONY_ORDER.get(g.id)?.label || aliasOf(g) || g.name;
-    return `<button class="cer-cell ${boolify(g.ceremonyChecked) ? 'on' : ''}" data-id="${g.id}">${label}</button>`;
-  }).join('');
+  const { groom, bride } = ceremonyEntries();
+  if (CEREMONY_SIDE === 'all') {
+    counter.textContent = `已確認 ${cerCountText([...groom, ...bride])} 人`;
+    box.innerHTML = `
+      <div class="cer-sub groom">男方・${cerCountText(groom)}</div>${cerGrid(groom)}
+      <div class="cer-sub bride">女方・${cerCountText(bride)}</div>${cerGrid(bride)}`;
+  } else {
+    const list = CEREMONY_SIDE === 'groom' ? groom : bride;
+    counter.textContent = `已確認 ${cerCountText(list)} 人`;
+    box.innerHTML = cerGrid(list);
+  }
   box.querySelectorAll('.cer-cell').forEach(el => {
     el.addEventListener('click', () => {
+      if (el.dataset.local) {
+        toggleLocalChecked(el.dataset.local);
+        renderCeremony();
+        return;
+      }
       const g = GUESTS.find(x => x.id === el.dataset.id);
       toggleGuestFlag(g, 'ceremonyChecked', 'ceremony', renderCeremony);
     });
